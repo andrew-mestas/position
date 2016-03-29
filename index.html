@@ -4,23 +4,39 @@
 	<title></title>
 </head>
 <body>
-
+<h2>Acceleration</h2>
 <p id="infox"></p>
 <p id="infoy"></p>
 <p id="infoz"></p>
+<br>
+<h2>Velocity</h2>
+<p id="velx"></p>
+<p id="vely"></p>
+<p id="velz"></p>
+<br>
+<h2>Position</h2>
+<p id="posx"></p>
+<p id="posy"></p>
+<p id="posz"></p>
+
 
 <p id="messagex"></p>
 <p id="messagey"></p>
 <p id="messagez"></p>
 
 <button id="calibrate">Calibrate</button>
-<button id="begin">Begin</button>
 
 
 <script>
-	var velocityx = {0: 0.0, 1: 0.0};
-	var velocityy = {0: 0.0, 1: 0.0};
-	var velocityz = {0: 0.0, 1: 0.0};
+	var AccX = {0: 0.0, 1: 0.0},
+   		AccY = {0: 0.0, 1: 0.0},
+   		AccZ = {0: 0.0, 1: 0.0};
+	var velocityX = {0: 0.0, 1: 0.0},
+	    velocityY = {0: 0.0, 1: 0.0},
+		velocityZ = {0: 0.0, 1: 0.0};
+	var positionX = {0: 0.0, 1: 0.0},
+	   	positionY = {0: 0.0, 1: 0.0},
+		velocityZ = {0: 0.0, 1: 0.0};
 	var countx, county, countz;
 	var xA, yA, zA;
 
@@ -38,20 +54,20 @@
 
 		xA == 0 ? countx++ : countx = 0;
 		if(countx >= 25){
-			velocityx.0 = 0;
-			velocityx.1 = 0;
+			velocityX[0] = 0;
+			velocityX[1] = 0;
 		};
 
 		yA == 0 ? county++ : county = 0;
 		if(county >= 25){
-			velocityy.0 = 0;
-			velocityy.1 = 0;
+			velocityY[0] = 0;
+			velocityY[1] = 0;
 		};
 
 		zA == 0 ? countz++ : countz = 0;
 		if(countz >= 25){
-			velocityz.0 = 0;
-			velocityz.1 = 0;
+			velocityZ[0] = 0;
+			velocityZ[1] = 0;
 		};
 	};
 
@@ -84,34 +100,83 @@
 
    	var positionFunction = function(event){
    		var count2 = 0;
-   		var AccX = 0.0,
-   			AccY = 0.0,
-   			AccZ = 0.0;
+
 
   		getAllAxis();
 
   		do {
-  			AccX = AccX + xA;
-  			AccY = AccY + yA;
-  			AccZ = AccZ + zA; 
+  			AccX[1] = AccX[1] + xA;
+  			AccY[1] = AccY[1] + yA;
+  			AccZ[1] = AccZ[1] + zA; 
   			count2++;
   		} while(count2 != 64);
 
-  			AccX /= 64;
-  			AccY /= 64;
-  			AccZ /= 64;
+  			AccX[1] /= 64;
+  			AccY[1] /= 64;
+  			AccZ[1] /= 64;
 
-  			AccX = AccX - Math.round(stateX);
-  			AccY = AccY - Math.round(stateY);
-  			AccZ = AccZ - Math.round(stateZ);
+  			AccX[1] = AccX[1] - Math.round(stateX);
+  			AccY[1] = AccY[1] - Math.round(stateY);
+  			AccZ[1] = AccZ[1] - Math.round(stateZ);
 
-		    var x = "X " + AccX;
-    		var y = "Y " + AccY; 
-    		var z = "Z " + AccZ;
+  			if((accX[1] <= 3 && accX[1] >= -3)){
+  				accX[1] = 0;
+  			}
+  			if((accY[1] <= 3 && accY[1] >= -3)){
+  				accY[1] = 0;
+  			}
+  			if((accZ[1] <= 3 && accZ[1] >= -3)){
+  				accZ[1] = 0;
+  			}
+
+  			velocityX[1]= velocityX[0]+ AccX[0]+ ((AccX[1] -AccX[0]) / 2 ); 
+			positionX[1]= positionX[0] + velocityX[0] + ((velocityX[1] - velocityX[0]) / 2);
+
+			velocityY[1]= velocityY[0]+ AccY[0]+ ((AccY[1] -AccY[0]) / 2 ); 
+			positionY[1]= positionY[0] + velocityY[0] + ((velocityY[1] - velocityY[0]) / 2);
+
+			velocityZ[1]= velocityZ[0]+ AccZ[0]+ ((AccZ[1] -AccZ[0]) / 2 ); 
+			positionZ[1]= positionZ[0] + velocityZ[0] + ((velocityZ[1] - velocityZ[0]) / 2);
+
+			AccX[0] = AccX[1];
+			AccY[0] = AccY[1];
+			AccZ[0] = AccZ[1];
+
+			velocityX[0] = velocityX[1]; 
+			velocityY[0] = velocityY[1];
+
+			positionX[0] = positionX[1];
+			positionY[0] = positionY[1];
+			positionZ[0] = positionZ[1];
+
+			checkMovement();
+
+		    var x = "X " + AccX[1];
+    		var y = "Y " + AccY[1]; 
+    		var z = "Z " + AccZ[1];
+
+		    var vx = "X " + velocityX[1];
+    		var vy = "Y " + velocityY[1]; 
+    		var vz = "Z " + velocityZ[1];
+
+		    var px = "X " + positionX[1];
+    		var py = "Y " + positionY[1]; 
+    		var pz = "Z " + positionZ[1];
+
+    		
 
     document.getElementById("infox").innerHTML = x;
     document.getElementById("infoy").innerHTML = y;
     document.getElementById("infoz").innerHTML = z;
+
+    document.getElementById("velx").innerHTML = vx;
+    document.getElementById("vely").innerHTML = vy;
+    document.getElementById("velz").innerHTML = vz;
+
+    document.getElementById("posx").innerHTML = px;
+    document.getElementById("posy").innerHTML = py;
+    document.getElementById("posz").innerHTML = pz;
+
 
    	};
 
@@ -128,7 +193,6 @@
 
 
    document.getElementById("calibrate").addEventListener("click", function(){WindowFunction(1);});
-   document.getElementById("begin").addEventListener("click", function(){WindowFunction(2);});
 
 
 </script>
