@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+</head>
+<body>
+
+<p id="infox"></p>
+<p id="infoy"></p>
+<p id="infoz"></p>
+
+<p id="messagex"></p>
+<p id="messagey"></p>
+<p id="messagez"></p>
+
+<button id="calibrate">Calibrate</button>
+<button id="begin">Begin</button>
+
+
+<script>
+	var velocityx = {0: 0.0, 1: 0.0};
+	var velocityy = {0: 0.0, 1: 0.0};
+	var velocityz = {0: 0.0, 1: 0.0};
+	var countx, county, countz;
+	var xA, yA, zA;
+
+	var getAllAxis = function(){
+	accX = Math.round(event.accelerationIncludingGravity.x*10) / 10;
+    accY = Math.round(event.accelerationIncludingGravity.y*10) / 10;
+    accZ = Math.round(event.accelerationIncludingGravity.z*10) / 10;
+    movement = 10
+    xA = -(accX / 10) * movement;
+    yA = -(accY / 10) * movement;
+    zA = -(accZ / 10) * movement;
+	};
+
+	var checkMovement = function(){
+
+		xA == 0 ? countx++ : countx = 0;
+		if(countx >= 25){
+			velocityx.0 = 0;
+			velocityx.1 = 0;
+		};
+
+		yA == 0 ? county++ : county = 0;
+		if(county >= 25){
+			velocityy.0 = 0;
+			velocityy.1 = 0;
+		};
+
+		zA == 0 ? countz++ : countz = 0;
+		if(countz >= 25){
+			velocityz.0 = 0;
+			velocityz.1 = 0;
+		};
+	};
+
+	var calibrateFunction = function(event) {
+	count = 0;
+		stateX = 0.0,
+		stateY = 0.0,
+		stateZ = 0.0;
+   	do{
+   		getAllAxis();
+   		stateX = stateX + xA;
+   		stateY = stateY + yA;
+   		stateZ = stateZ + zA;
+	    count++;
+   	} while(count != 1024);
+
+   	stateX /= 1024;
+   	stateY /= 1024;
+   	stateZ /= 1024;
+
+    var x = "X " + stateX;
+    var y = "Y " + stateY;
+    var z = "Z " + stateZ;
+    // console.log();
+    document.getElementById("infox").innerHTML = x;
+    document.getElementById("infoy").innerHTML = y;
+    document.getElementById("infoz").innerHTML = z;
+    WindowFunction(2);
+   	};
+
+   	var positionFunction = function(event){
+   		var count2 = 0;
+   		var AccX = 0.0,
+   			AccY = 0.0,
+   			AccZ = 0.0;
+
+  		getAllAxis();
+
+  		do {
+  			AccX = AccX + xA;
+  			AccY = AccY + yA;
+  			AccZ = AccZ + zA; 
+  			count2++;
+  		} while(count2 != 64);
+
+  			AccX /= 64;
+  			AccY /= 64;
+  			AccZ /= 64;
+
+  			AccX = AccX - Math.round(stateX);
+  			AccY = AccY - Math.round(stateY);
+  			AccZ = AccZ - Math.round(stateZ);
+
+		    var x = "X " + AccX;
+    		var y = "Y " + AccY; 
+    		var z = "Z " + AccZ;
+
+    document.getElementById("infox").innerHTML = x;
+    document.getElementById("infoy").innerHTML = y;
+    document.getElementById("infoz").innerHTML = z;
+
+   	};
+
+	var WindowFunction = function(choice) {
+	switch(choice){
+		case 1: 
+		 window.ondevicemotion = calibrateFunction;
+		 break;
+		case 2: 
+		 window.ondevicemotion = positionFunction;
+		break;		
+	}
+   };
+
+
+   document.getElementById("calibrate").addEventListener("click", function(){WindowFunction(1);});
+   document.getElementById("begin").addEventListener("click", function(){WindowFunction(2);});
+
+
+</script>
+</body>
+</html>
