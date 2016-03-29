@@ -36,35 +36,42 @@
 		velocityZ = {0: 0.0, 1: 0.0};
 	var positionX = {0: 0.0, 1: 0.0},
 	   	positionY = {0: 0.0, 1: 0.0},
-		velocityZ = {0: 0.0, 1: 0.0};
+		positionZ = {0: 0.0, 1: 0.0};
 	var countx, county, countz;
 	var xA, yA, zA;
 
-	var getAllAxis = function(){
-	accX = Math.round(event.accelerationIncludingGravity.x*10) / 10;
-    accY = Math.round(event.accelerationIncludingGravity.y*10) / 10;
-    accZ = Math.round(event.accelerationIncludingGravity.z*10) / 10;
+	var getAllAxis = function(choice){
+	if(choice === 0){
+	var AccelGX = Math.round(event.accelerationIncludingGravity.x*10) / 10;
+    var AccelGY = Math.round(event.accelerationIncludingGravity.y*10) / 10;
+    var AccelGZ = Math.round(event.accelerationIncludingGravity.z*10) / 10;
+	} else {
+   	var AccelGX = Math.round(event.acceleration.x*10) / 10;
+    var AccelGY = Math.round(event.acceleration.y*10) / 10;
+    var AccelGZ = Math.round(event.acceleration.z*10) / 10;
+	}
     movement = 10
-    xA = -(accX / 10) * movement;
-    yA = -(accY / 10) * movement;
-    zA = -(accZ / 10) * movement;
+    xA = -(AccelGX / 10) * movement;
+    yA = -(AccelGY / 10) * movement;
+    zA = -(AccelGZ / 10) * movement;
+
 	};
 
 	var checkMovement = function(){
 
-		xA == 0 ? countx++ : countx = 0;
+		Math.floor(xA) == 0 ? countx++ : countx = 0;
 		if(countx >= 25){
 			velocityX[0] = 0;
 			velocityX[1] = 0;
 		};
 
-		yA == 0 ? county++ : county = 0;
+		Math.floor(yA) == 0 ? county++ : county = 0;
 		if(county >= 25){
 			velocityY[0] = 0;
 			velocityY[1] = 0;
 		};
 
-		zA == 0 ? countz++ : countz = 0;
+		Math.floor(zA) == 0 ? countz++ : countz = 0;
 		if(countz >= 25){
 			velocityZ[0] = 0;
 			velocityZ[1] = 0;
@@ -77,7 +84,7 @@
 		stateY = 0.0,
 		stateZ = 0.0;
    	do{
-   		getAllAxis();
+   		getAllAxis(1);
    		stateX = stateX + xA;
    		stateY = stateY + yA;
    		stateZ = stateZ + zA;
@@ -102,8 +109,8 @@
    		var count2 = 0;
 
 
-  		getAllAxis();
-
+  		getAllAxis(1);
+  		// checkMovement();
   		do {
   			AccX[1] = AccX[1] + xA;
   			AccY[1] = AccY[1] + yA;
@@ -119,23 +126,23 @@
   			AccY[1] = AccY[1] - Math.round(stateY);
   			AccZ[1] = AccZ[1] - Math.round(stateZ);
 
-  			if((accX[1] <= 3 && accX[1] >= -3)){
-  				accX[1] = 0;
+  			if((AccX[1] <= 1 && AccX[1] >= -1)){
+  				AccX[1] = 0;
   			}
-  			if((accY[1] <= 3 && accY[1] >= -3)){
-  				accY[1] = 0;
+  			if((AccY[1] <= 1 && AccY[1] >= -1)){
+  				AccY[1] = 0;
   			}
-  			if((accZ[1] <= 3 && accZ[1] >= -3)){
-  				accZ[1] = 0;
+  			if((AccZ[1] <= 1 && AccZ[1] >= -1)){
+  				AccZ[1] = 0;
   			}
 
-  			velocityX[1]= velocityX[0]+ AccX[0]+ ((AccX[1] -AccX[0]) / 2 ); 
+  			velocityX[1]= velocityX[0] + AccX[0]+ ((AccX[1] -AccX[0]) / 2 ); 
 			positionX[1]= positionX[0] + velocityX[0] + ((velocityX[1] - velocityX[0]) / 2);
 
-			velocityY[1]= velocityY[0]+ AccY[0]+ ((AccY[1] -AccY[0]) / 2 ); 
+			velocityY[1]= velocityY[0] + AccY[0]+ ((AccY[1] -AccY[0]) / 2 ); 
 			positionY[1]= positionY[0] + velocityY[0] + ((velocityY[1] - velocityY[0]) / 2);
 
-			velocityZ[1]= velocityZ[0]+ AccZ[0]+ ((AccZ[1] -AccZ[0]) / 2 ); 
+			velocityZ[1]= velocityZ[0] + AccZ[0]+ ((AccZ[1] -AccZ[0]) / 2 ); 
 			positionZ[1]= positionZ[0] + velocityZ[0] + ((velocityZ[1] - velocityZ[0]) / 2);
 
 			AccX[0] = AccX[1];
@@ -163,7 +170,7 @@
     		var py = "Y " + positionY[1]; 
     		var pz = "Z " + positionZ[1];
 
-    		
+
 
     document.getElementById("infox").innerHTML = x;
     document.getElementById("infoy").innerHTML = y;
