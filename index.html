@@ -2,7 +2,23 @@
 <html>
 <head>
 	<title></title>
+	<style>
+	#cursor{
+		height: 30px;
+    	width: 30px;
+   		background: blue;
+    	border-radius: 50%;
+    	position: absolute;
+    	top: 200px;
+    	left: 280px;
+    }
+    #calibrate{
+    	z-index: 4;
+    }
+
+    </style>
 </head>
+<div id="cursor"></div>
 <body>
 <h2>Acceleration</h2>
 <p id="infox"></p>
@@ -26,6 +42,8 @@
 
 <button id="calibrate">Calibrate</button>
 
+<button id="reset">Reset</button>
+
 
 <script>
 	var AccX = {0: 0.0, 1: 0.0},
@@ -37,6 +55,8 @@
 	var positionX = {0: 0.0, 1: 0.0},
 	   	positionY = {0: 0.0, 1: 0.0},
 		positionZ = {0: 0.0, 1: 0.0};
+	var sensitivity = 4;
+	var AccelerationSensitivity = 0.7;
 	var countx, county, countz;
 	var xA, yA, zA;
 
@@ -102,6 +122,7 @@
     document.getElementById("infox").innerHTML = x;
     document.getElementById("infoy").innerHTML = y;
     document.getElementById("infoz").innerHTML = z;
+
     WindowFunction(2);
    	};
 
@@ -126,13 +147,13 @@
   			AccY[1] = AccY[1] - Math.round(stateY);
   			AccZ[1] = AccZ[1] - Math.round(stateZ);
 
-  			if((AccX[1] <= 1 && AccX[1] >= -1)){
+  			if((AccX[1] <= AccelerationSensitivity && AccX[1] >= -AccelerationSensitivity)){
   				AccX[1] = 0;
   			}
-  			if((AccY[1] <= 1 && AccY[1] >= -1)){
+  			if((AccY[1] <= AccelerationSensitivity && AccY[1] >= -AccelerationSensitivity)){
   				AccY[1] = 0;
   			}
-  			if((AccZ[1] <= 1 && AccZ[1] >= -1)){
+  			if((AccZ[1] <= AccelerationSensitivity && AccZ[1] >= -AccelerationSensitivity)){
   				AccZ[1] = 0;
   			}
 
@@ -166,10 +187,20 @@
     		var vy = "Y " + velocityY[1]; 
     		var vz = "Z " + velocityZ[1];
 
-		    var px = "X " + positionX[1];
-    		var py = "Y " + positionY[1]; 
+		    var px = "X " + positionX[1] / sensitivity;
+    		var py = "Y " + positionY[1] / sensitivity; 
     		var pz = "Z " + positionZ[1];
 
+    		var top = 200 - (positionY[1] / sensitivity);
+    		var left = 280 +  (positionX[1] / sensitivity);
+    		// top = ((200 - (positionY[1] / sensitivity)) >= 482) ? 482 : top;
+    		// top = ((200 - (positionY[1] / sensitivity)) <= 6) ? 6 : top;
+    		// left = ((280 +  (positionX[1] / sensitivity)) >= 329) ? 329 : left;
+    		// left = ((280 +  (positionX[1] / sensitivity)) <= 0) ? 0 : left;
+
+
+	document.getElementById("cursor").style["top"] = top.toString() + "px";
+	document.getElementById("cursor").style["left"] = left.toString() + "px";
 
 
     document.getElementById("infox").innerHTML = x;
@@ -200,7 +231,16 @@
 
 
    document.getElementById("calibrate").addEventListener("click", function(){WindowFunction(1);});
-
+   document.getElementById("reset").addEventListener("click", function(){
+   	document.getElementById("cursor").style["top"] = "200px";
+	document.getElementById("cursor").style["left"] = "280px";
+		AccX[0] = AccY[0] = AccZ[0] = 0;
+		AccX[1] = AccY[1] = AccZ[1] = 0;
+		velocityX[0] = velocityY[0] = velocityZ[0] = 0;
+		velocityX[1] = velocityY[1] = velocityZ[1] = 0;
+		positionX[0] = positionY[0] = positionZ[0] = 0;
+		positionX[1] = positionY[1] = positionZ[1] = 0;
+   });
 
 </script>
 </body>
