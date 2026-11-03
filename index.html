@@ -1,247 +1,339 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<title></title>
-	<style>
-	#cursor{
-		height: 30px;
-    		width: 30px;
-   		background: blue;
-    		border-radius: 50%;
-    		position: absolute;
-    		top: 200px;
-    		left: 280px;
-	 }
-	 #calibrate{
-	 	z-index: 4;
-	 }
-
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Phone Motion Air Mouse</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 20px;
+      }
+      #stage {
+        position: relative;
+        width: min(100%, 600px);
+        height: 400px;
+        border: 1px solid #aaa;
+        background: #f7f7f7;
+        overflow: hidden;
+        margin: 16px 0;
+      }
+      #cursor {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: blue;
+        left: 300px;
+        top: 200px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      button {
+        padding: 10px 14px;
+        margin: 4px 8px 4px 0;
+        font-size: 1rem;
+      }
+      .readouts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 4px 16px;
+        max-width: 600px;
+      }
+      #status {
+        min-height: 1.5em;
+        font-weight: 600;
+      }
+      .note {
+        max-width: 650px;
+        color: #444;
+        line-height: 1.45;
+      }
     </style>
-</head>
-<div id="cursor"></div>
-<body>
-<h2>Acceleration</h2>
-<p id="infox"></p>
-<p id="infoy"></p>
-<p id="infoz"></p>
-<br>
-<h2>Velocity</h2>
-<p id="velx"></p>
-<p id="vely"></p>
-<p id="velz"></p>
-<br>
-<h2>Position</h2>
-<p id="posx"></p>
-<p id="posy"></p>
-<p id="posz"></p>
+  </head>
+  <body>
+    <h1>Phone Motion Air Mouse</h1>
+    <div id="stage"><div id="cursor"></div></div>
+    <p id="status">
+      Tap Calibrate / Start, then hold the phone still for two seconds.
+    </p>
+    <button id="calibrate">Calibrate / Start</button>
+    <button id="reset">Reset position</button>
+    <h2>Acceleration (m/s², bias-corrected)</h2>
+    <div class="readouts">
+      <p id="infox">X 0</p>
+      <p id="infoy">Y 0</p>
+      <p id="infoz">Z 0</p>
+    </div>
+    <h2>Velocity (m/s)</h2>
+    <div class="readouts">
+      <p id="velx">X 0</p>
+      <p id="vely">Y 0</p>
+      <p id="velz">Z 0</p>
+    </div>
+    <h2>Position (m)</h2>
+    <div class="readouts">
+      <p id="posx">X 0</p>
+      <p id="posy">Y 0</p>
+      <p id="posz">Z 0</p>
+    </div>
+    <p class="note">
+      For this first test, keep the phone in a fixed orientation. This version
+      uses the browser's gravity-removed linear acceleration. It does not yet
+      compensate for phone rotation, and inertial integration will drift.
+    </p>
 
+    <script>
+      "use strict";
 
-<p id="messagex"></p>
-<p id="messagey"></p>
-<p id="messagez"></p>
+      // State arrays retain the original [previous sample, current sample] design.
+      var AccX = { 0: 0, 1: 0 },
+        AccY = { 0: 0, 1: 0 },
+        AccZ = { 0: 0, 1: 0 };
+      var velocityX = { 0: 0, 1: 0 },
+        velocityY = { 0: 0, 1: 0 },
+        velocityZ = { 0: 0, 1: 0 };
+      var positionX = { 0: 0, 1: 0 },
+        positionY = { 0: 0, 1: 0 },
+        positionZ = { 0: 0, 1: 0 };
 
-<button id="calibrate">Calibrate</button>
+      var sensitivity = 4;
+      var AccelerationSensitivity = 0.12; // starting deadband, m/s²
+      var xA = 0,
+        yA = 0,
+        zA = 0;
+      var stateX = 0,
+        stateY = 0,
+        stateZ = 0;
+      var previousTime = null,
+        stationaryStart = null;
+      var calibrationCount = 0,
+        calibrationStart = null;
+      var calibrationSumX = 0,
+        calibrationSumY = 0,
+        calibrationSumZ = 0;
+      var mode = "idle";
 
-<button id="reset">Reset</button>
+      var el = function (id) {
+        return document.getElementById(id);
+      };
+      var setStatus = function (s) {
+        el("status").textContent = s;
+      };
+      var eventTime = function (e) {
+        return Number.isFinite(e.timeStamp) ? e.timeStamp : performance.now();
+      };
 
+      // Use acceleration (gravity removed), not accelerationIncludingGravity.
+      var getAllAxis = function (e) {
+        if (!e || !e.acceleration) return false;
+        var a = e.acceleration;
+        if (![a.x, a.y, a.z].every(Number.isFinite)) return false;
+        // Preserve the sign convention used by the original project.
+        xA = -a.x;
+        yA = -a.y;
+        zA = -a.z;
+        return true;
+      };
 
-<script>
-	var AccX = {0: 0.0, 1: 0.0},
-   		AccY = {0: 0.0, 1: 0.0},
-   		AccZ = {0: 0.0, 1: 0.0};
-	var velocityX = {0: 0.0, 1: 0.0},
-	    velocityY = {0: 0.0, 1: 0.0},
-		velocityZ = {0: 0.0, 1: 0.0};
-	var positionX = {0: 0.0, 1: 0.0},
-	   	positionY = {0: 0.0, 1: 0.0},
-		positionZ = {0: 0.0, 1: 0.0};
-	var sensitivity = 4;
-	var AccelerationSensitivity = 0.7;
-	var countx, county, countz;
-	var xA, yA, zA;
+      var updateDisplay = function () {
+        el("infox").textContent = "X " + AccX[1].toFixed(3);
+        el("infoy").textContent = "Y " + AccY[1].toFixed(3);
+        el("infoz").textContent = "Z " + AccZ[1].toFixed(3);
+        el("velx").textContent = "X " + velocityX[1].toFixed(3);
+        el("vely").textContent = "Y " + velocityY[1].toFixed(3);
+        el("velz").textContent = "Z " + velocityZ[1].toFixed(3);
+        el("posx").textContent = "X " + positionX[1].toFixed(3);
+        el("posy").textContent = "Y " + positionY[1].toFixed(3);
+        el("posz").textContent = "Z " + positionZ[1].toFixed(3);
 
-	var getAllAxis = function(choice){
-	if(choice === 0){
-	var AccelGX = Math.round(event.accelerationIncludingGravity.x*10) / 10;
-    var AccelGY = Math.round(event.accelerationIncludingGravity.y*10) / 10;
-    var AccelGZ = Math.round(event.accelerationIncludingGravity.z*10) / 10;
-	} else {
-   	var AccelGX = Math.round(event.acceleration.x*10) / 10;
-    var AccelGY = Math.round(event.acceleration.y*10) / 10;
-    var AccelGZ = Math.round(event.acceleration.z*10) / 10;
-	}
-    movement = 10
-    xA = -(AccelGX / 10) * movement;
-    yA = -(AccelGY / 10) * movement;
-    zA = -(AccelGZ / 10) * movement;
+        var stage = el("stage"),
+          r = 15;
+        var left = stage.clientWidth / 2 + positionX[1] / sensitivity;
+        var top = stage.clientHeight / 2 - positionY[1] / sensitivity;
+        left = Math.max(r, Math.min(stage.clientWidth - r, left));
+        top = Math.max(r, Math.min(stage.clientHeight - r, top));
+        el("cursor").style.left = left + "px";
+        el("cursor").style.top = top + "px";
+      };
 
-	};
+      var clearMotionState = function (clearPosition) {
+        AccX[0] = AccX[1] = AccY[0] = AccY[1] = AccZ[0] = AccZ[1] = 0;
+        velocityX[0] =
+          velocityX[1] =
+          velocityY[0] =
+          velocityY[1] =
+          velocityZ[0] =
+          velocityZ[1] =
+            0;
+        if (clearPosition) {
+          positionX[0] =
+            positionX[1] =
+            positionY[0] =
+            positionY[1] =
+            positionZ[0] =
+            positionZ[1] =
+              0;
+        }
+        previousTime = null;
+        stationaryStart = null;
+        updateDisplay();
+      };
 
-	var checkMovement = function(){
+      var resetCalibration = function () {
+        calibrationCount = 0;
+        calibrationStart = null;
+        calibrationSumX = calibrationSumY = calibrationSumZ = 0;
+      };
 
-		Math.floor(xA) == 0 ? countx++ : countx = 0;
-		if(countx >= 25){
-			velocityX[0] = 0;
-			velocityX[1] = 0;
-		};
+      // Average real sensor events for two seconds; no artificial sampling loop.
+      var calibrateFunction = function (e) {
+        if (!getAllAxis(e)) {
+          setStatus(
+            "No linear-acceleration data is available from this device/browser.",
+          );
+          return;
+        }
+        var t = eventTime(e);
+        if (calibrationStart === null) calibrationStart = t;
+        calibrationSumX += xA;
+        calibrationSumY += yA;
+        calibrationSumZ += zA;
+        calibrationCount++;
+        var elapsed = t - calibrationStart;
+        setStatus(
+          "Calibrating — hold still. " +
+            Math.max(0, 2 - elapsed / 1000).toFixed(1) +
+            " s remaining",
+        );
 
-		Math.floor(yA) == 0 ? county++ : county = 0;
-		if(county >= 25){
-			velocityY[0] = 0;
-			velocityY[1] = 0;
-		};
+        if (elapsed < 2000) return;
+        if (calibrationCount < 20) {
+          resetCalibration();
+          setStatus("Too few samples. Tap Calibrate / Start and try again.");
+          return;
+        }
 
-		Math.floor(zA) == 0 ? countz++ : countz = 0;
-		if(countz >= 25){
-			velocityZ[0] = 0;
-			velocityZ[1] = 0;
-		};
-	};
+        stateX = calibrationSumX / calibrationCount;
+        stateY = calibrationSumY / calibrationCount;
+        stateZ = calibrationSumZ / calibrationCount;
+        resetCalibration();
+        clearMotionState(true);
+        mode = "tracking";
+        window.removeEventListener("devicemotion", calibrateFunction);
+        window.addEventListener("devicemotion", positionFunction);
+        setStatus("Calibrated. Move gently; keep the phone orientation fixed.");
+      };
 
-	var calibrateFunction = function(event) {
-	count = 0;
-		stateX = 0.0,
-		stateY = 0.0,
-		stateZ = 0.0;
-   	do{
-   		getAllAxis(1);
-   		stateX = stateX + xA;
-   		stateY = stateY + yA;
-   		stateZ = stateZ + zA;
-	    count++;
-   	} while(count != 1024);
+      // A basic zero-velocity heuristic. It can suppress slow movement.
+      var checkMovement = function (t) {
+        var m = Math.hypot(AccX[1], AccY[1], AccZ[1]);
+        if (m < 0.25) {
+          if (stationaryStart === null) stationaryStart = t;
+          if (t - stationaryStart >= 300) {
+            velocityX[0] = velocityX[1] = 0;
+            velocityY[0] = velocityY[1] = 0;
+            velocityZ[0] = velocityZ[1] = 0;
+          }
+        } else stationaryStart = null;
+      };
 
-   	stateX /= 1024;
-   	stateY /= 1024;
-   	stateZ /= 1024;
+      var positionFunction = function (e) {
+        if (!getAllAxis(e)) return;
+        var t = eventTime(e);
 
-    var x = "X " + stateX;
-    var y = "Y " + stateY;
-    var z = "Z " + stateZ;
-    // console.log();
-    document.getElementById("infox").innerHTML = x;
-    document.getElementById("infoy").innerHTML = y;
-    document.getElementById("infoz").innerHTML = z;
+        AccX[1] = xA - stateX;
+        AccY[1] = yA - stateY;
+        AccZ[1] = zA - stateZ;
+        if (Math.abs(AccX[1]) < AccelerationSensitivity) AccX[1] = 0;
+        if (Math.abs(AccY[1]) < AccelerationSensitivity) AccY[1] = 0;
+        if (Math.abs(AccZ[1]) < AccelerationSensitivity) AccZ[1] = 0;
 
-    WindowFunction(2);
-   	};
+        if (previousTime === null) {
+          previousTime = t;
+          AccX[0] = AccX[1];
+          AccY[0] = AccY[1];
+          AccZ[0] = AccZ[1];
+          updateDisplay();
+          return;
+        }
 
-   	var positionFunction = function(event){
-   		var count2 = 0;
+        var dt = (t - previousTime) / 1000;
+        if (!Number.isFinite(dt) || dt <= 0 || dt > 0.1) {
+          previousTime = t;
+          AccX[0] = AccX[1];
+          AccY[0] = AccY[1];
+          AccZ[0] = AccZ[1];
+          return;
+        }
 
+        var oldVX = velocityX[0],
+          oldVY = velocityY[0],
+          oldVZ = velocityZ[0];
 
-  		getAllAxis(1);
-  		// checkMovement();
-  		do {
-  			AccX[1] = AccX[1] + xA;
-  			AccY[1] = AccY[1] + yA;
-  			AccZ[1] = AccZ[1] + zA; 
-  			count2++;
-  		} while(count2 != 64);
+        // Trapezoidal integration: acceleration to velocity.
+        velocityX[1] = velocityX[0] + (AccX[0] + AccX[1]) * 0.5 * dt;
+        velocityY[1] = velocityY[0] + (AccY[0] + AccY[1]) * 0.5 * dt;
+        velocityZ[1] = velocityZ[0] + (AccZ[0] + AccZ[1]) * 0.5 * dt;
 
-  			AccX[1] /= 64;
-  			AccY[1] /= 64;
-  			AccZ[1] /= 64;
+        // Trapezoidal integration: velocity to position.
+        positionX[1] = positionX[0] + (oldVX + velocityX[1]) * 0.5 * dt;
+        positionY[1] = positionY[0] + (oldVY + velocityY[1]) * 0.5 * dt;
+        positionZ[1] = positionZ[0] + (oldVZ + velocityZ[1]) * 0.5 * dt;
 
-  			AccX[1] = AccX[1] - Math.round(stateX);
-  			AccY[1] = AccY[1] - Math.round(stateY);
-  			AccZ[1] = AccZ[1] - Math.round(stateZ);
+        AccX[0] = AccX[1];
+        AccY[0] = AccY[1];
+        AccZ[0] = AccZ[1];
+        velocityX[0] = velocityX[1];
+        velocityY[0] = velocityY[1];
+        velocityZ[0] = velocityZ[1];
+        positionX[0] = positionX[1];
+        positionY[0] = positionY[1];
+        positionZ[0] = positionZ[1];
+        previousTime = t;
+        checkMovement(t);
+        updateDisplay();
+      };
 
-  			if((AccX[1] <= AccelerationSensitivity && AccX[1] >= -AccelerationSensitivity)){
-  				AccX[1] = 0;
-  			}
-  			if((AccY[1] <= AccelerationSensitivity && AccY[1] >= -AccelerationSensitivity)){
-  				AccY[1] = 0;
-  			}
-  			if((AccZ[1] <= AccelerationSensitivity && AccZ[1] >= -AccelerationSensitivity)){
-  				AccZ[1] = 0;
-  			}
+      var startCalibration = async function () {
+        if (!("DeviceMotionEvent" in window)) {
+          setStatus("Device motion events are not supported by this browser.");
+          return;
+        }
+        // iOS Safari requires this permission request inside a user gesture.
+        if (typeof DeviceMotionEvent.requestPermission === "function") {
+          try {
+            var permission = await DeviceMotionEvent.requestPermission();
+            if (permission !== "granted") {
+              setStatus("Motion permission was not granted.");
+              return;
+            }
+          } catch (err) {
+            setStatus("Motion permission error: " + err.message);
+            return;
+          }
+        }
+        window.removeEventListener("devicemotion", positionFunction);
+        window.removeEventListener("devicemotion", calibrateFunction);
+        resetCalibration();
+        clearMotionState(true);
+        mode = "calibrating";
+        window.addEventListener("devicemotion", calibrateFunction);
+        setStatus(
+          "Hold the phone still while calibration samples are collected.",
+        );
+      };
 
-  			velocityX[1]= velocityX[0] + AccX[0]+ ((AccX[1] -AccX[0]) / 2 ); 
-			positionX[1]= positionX[0] + velocityX[0] + ((velocityX[1] - velocityX[0]) / 2);
-
-			velocityY[1]= velocityY[0] + AccY[0]+ ((AccY[1] -AccY[0]) / 2 ); 
-			positionY[1]= positionY[0] + velocityY[0] + ((velocityY[1] - velocityY[0]) / 2);
-
-			velocityZ[1]= velocityZ[0] + AccZ[0]+ ((AccZ[1] -AccZ[0]) / 2 ); 
-			positionZ[1]= positionZ[0] + velocityZ[0] + ((velocityZ[1] - velocityZ[0]) / 2);
-
-			AccX[0] = AccX[1];
-			AccY[0] = AccY[1];
-			AccZ[0] = AccZ[1];
-
-			velocityX[0] = velocityX[1]; 
-			velocityY[0] = velocityY[1];
-
-			positionX[0] = positionX[1];
-			positionY[0] = positionY[1];
-			positionZ[0] = positionZ[1];
-
-			checkMovement();
-
-		    var x = "X " + AccX[1];
-    		var y = "Y " + AccY[1]; 
-    		var z = "Z " + AccZ[1];
-
-		    var vx = "X " + velocityX[1];
-    		var vy = "Y " + velocityY[1]; 
-    		var vz = "Z " + velocityZ[1];
-
-		    var px = "X " + positionX[1] / sensitivity;
-    		var py = "Y " + positionY[1] / sensitivity; 
-    		var pz = "Z " + positionZ[1];
-
-    		var top = 200 - (positionY[1] / sensitivity);
-    		var left = 280 +  (positionX[1] / sensitivity);
-    		// top = ((200 - (positionY[1] / sensitivity)) >= 482) ? 482 : top;
-    		// top = ((200 - (positionY[1] / sensitivity)) <= 6) ? 6 : top;
-    		// left = ((280 +  (positionX[1] / sensitivity)) >= 329) ? 329 : left;
-    		// left = ((280 +  (positionX[1] / sensitivity)) <= 0) ? 0 : left;
-
-
-	document.getElementById("cursor").style["top"] = top.toString() + "px";
-	document.getElementById("cursor").style["left"] = left.toString() + "px";
-
-
-    document.getElementById("infox").innerHTML = x;
-    document.getElementById("infoy").innerHTML = y;
-    document.getElementById("infoz").innerHTML = z;
-
-    document.getElementById("velx").innerHTML = vx;
-    document.getElementById("vely").innerHTML = vy;
-    document.getElementById("velz").innerHTML = vz;
-
-    document.getElementById("posx").innerHTML = px;
-    document.getElementById("posy").innerHTML = py;
-    document.getElementById("posz").innerHTML = pz;
-
-
-   	};
-
-	var WindowFunction = function(choice) {
-	switch(choice){
-		case 1: 
-		 window.ondevicemotion = calibrateFunction;
-		 break;
-		case 2: 
-		 window.ondevicemotion = positionFunction;
-		break;		
-	}
-   };
-
-
-   document.getElementById("calibrate").addEventListener("click", function(){WindowFunction(1);});
-   document.getElementById("reset").addEventListener("click", function(){
-   	document.getElementById("cursor").style["top"] = "200px";
-	document.getElementById("cursor").style["left"] = "280px";
-		AccX[0] = AccY[0] = AccZ[0] = 0;
-		AccX[1] = AccY[1] = AccZ[1] = 0;
-		velocityX[0] = velocityY[0] = velocityZ[0] = 0;
-		velocityX[1] = velocityY[1] = velocityZ[1] = 0;
-		positionX[0] = positionY[0] = positionZ[0] = 0;
-		positionX[1] = positionY[1] = positionZ[1] = 0;
-   });
-
-</script>
-</body>
+      el("calibrate").addEventListener("click", startCalibration);
+      el("reset").addEventListener("click", function () {
+        clearMotionState(true);
+        setStatus(
+          mode === "tracking"
+            ? "Position reset; tracking continues and calibration is retained."
+            : "Position reset. Tap Calibrate / Start.",
+        );
+      });
+      updateDisplay();
+    </script>
+  </body>
 </html>
