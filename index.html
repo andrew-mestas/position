@@ -149,8 +149,11 @@
 
         var stage = el("stage"),
           r = 15;
-        var left = stage.clientWidth / 2 + positionX[1] / sensitivity;
-        var top = stage.clientHeight / 2 - positionY[1] / sensitivity;
+        
+        var cursorPixelsPerUnit = 4;
+        var left = stage.clientWidth / 2 + positionX[1] * cursorPixelsPerUnit;
+        var top = stage.clientHeight / 2 - positionY[1] * cursorPixelsPerUnit;
+        
         left = Math.max(r, Math.min(stage.clientWidth - r, left));
         top = Math.max(r, Math.min(stage.clientHeight - r, top));
         el("cursor").style.left = left + "px";
